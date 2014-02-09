@@ -21,9 +21,10 @@ void mouseButton(int button, int state, int x, int y);
 void arrows(int key, int x, int y);
 
 // Camera position
-float x = 0.0, y = -5.0; // initially 5 units south of origin
+float camera_x = 0.0, camera_y = 0.0; // initially 5 units south of origin
 float deltaMove = 0.0; // initially camera doesn't move
 int camera_view=1;
+float x=0.0, y=-5.0;
 
 // Camera direction
 float lx = 1.0, ly = 0.0; // camera points initially along y-axis
@@ -83,8 +84,8 @@ void windowResize(int w, int h)
 void update(int value) 
 {
 	if (deltaMove) { // update camera position
-		//motor_x += deltaMove * lx * 0.1;
-		//motor_y += deltaMove * ly * 0.1;
+		camera_x += deltaMove * lx * 0.1;
+		camera_y += deltaMove * ly * 0.1;
 	}
 	if(direction[0]!=0.0)
 		motor_x=(motorcycle->motor_x+=direction[0]);
@@ -104,7 +105,7 @@ void renderScene(void)
 
 	glLoadIdentity();
 
-	declare_view(camera_view, motor_x, motor_y, lx, ly);
+	declare_view(camera_view, motor_x, motor_y);
 
 	glColor3f(0.0, 0.7, 0.0);
 	glBegin(GL_QUADS);
@@ -128,7 +129,12 @@ void processNormalKeys(unsigned char key, int xx, int yy)
 	if (key == 'D' || key =='d') camera_view=1;
 	if (key == 'W' || key =='w') camera_view=2;
 	if (key == 'O' || key =='o') camera_view=3;
-	if (key == 'H' || key =='h') camera_view=4;
+	if (key == 'H' || key =='h') 
+	{
+			camera_view=4;
+			x=0;
+			y=0;
+	}
 	if (key == 'F' || key =='f') camera_view=5;
 
 } 
@@ -161,6 +167,8 @@ void mouseMove(int x, int y)
 		// camera's direction is set to angle + deltaAngle
 		lx = -sin(angle + deltaAngle);
 		ly = cos(angle + deltaAngle);
+
+		cout<<lx<<" "<<ly<<"\n";
 	}
 }
 

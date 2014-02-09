@@ -4,4 +4,6 @@
 #include <GL/freeglut.h>
 using namespace std;
 
-void declare_view(int v, float motor_x, float motor_y, float lx, float ly);
+extern float lx, ly, camera_x, camera_y, x, y;
+
+void declare_view(int v, float motor_x, float motor_y);
