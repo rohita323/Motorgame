@@ -44,7 +44,5 @@ void declare_view(int v, float motor_x, float motor_y)
 			break;
 		
 	}
-
-	//cout<<motor_x<<motor_y<<lx<<ly<<"\n";
 }
 

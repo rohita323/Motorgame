@@ -62,6 +62,8 @@ int main(int argc, char **argv)
 	_terrain = loadTerrain("heightmap.bmp", 20);
 	//Initialize();
 
+	initRendering();
+
 	motorcycle= new Motor(motor_x,motor_y);
 	glutReshapeFunc(windowResize);
 	glutDisplayFunc(renderScene); 
@@ -75,7 +77,7 @@ int main(int argc, char **argv)
 						
 	glutSpecialUpFunc(releaseSpecialKey); 
 	glEnable(GL_DEPTH_TEST);
-	glutTimerFunc(10, update, 0);
+	glutTimerFunc(50, update, 0);
 
 	glutMainLoop();
 
@@ -125,7 +127,31 @@ void renderScene(void)
 	// 	glVertex3f( 100.0,  100.0, 0.0);
 	// 	glVertex3f( 100.0, -100.0, 0.0);
 	// glEnd();
+
+
+	GLfloat lightColor0[] = {0.6f, 0.6f, 0.6f, 1.0f};
+	GLfloat lightPos0[] = {-0.5f, 0.8f, 0.0f, 0.0f};
+	GLfloat LightAmbient[]={0.1f,0.1,0.1f,1.0f};
+	GLfloat LightDiffuse[]={1.0,1.0,1.0,1.0f};
+	GLfloat ambientColor[] = {0.4f, 0.4f, 0.4f, 1.0f};
 	
+	glPushMatrix();
+	glTranslatef(1500,100,500);
+	glLightfv(GL_LIGHT1,GL_DIFFUSE,LightDiffuse);
+	glLightfv(GL_LIGHT1,GL_SPECULAR,LightDiffuse);
+	//glLightfv(GL_LIGHT1,GL_AMBIENT,LightAmbient);
+	glLightfv(GL_LIGHT0, GL_DIFFUSE, lightColor0);
+	glLightfv(GL_LIGHT0, GL_POSITION, lightPos0);	
+	glLightModelfv(GL_LIGHT_MODEL_AMBIENT, ambientColor);
+	glEnable(GL_LIGHTING);
+	glEnable(GL_LIGHT1);
+	glPopMatrix();
+
+
+	glPushMatrix();
+		motorcycle->draw();
+	glPopMatrix();
+
 	glPushMatrix();
 		glScalef(30, 30, 20);
 		glRotatef(90, 1.0f, 0.0f, 0.0f);
@@ -133,9 +159,7 @@ void renderScene(void)
 		draw_Terrain();
 	glPopMatrix();
 
-	glPushMatrix();
-		motorcycle->draw();
-	glPopMatrix();
+	
 	
 	glFlush();
 	glutSwapBuffers(); // Make it all visible
@@ -187,7 +211,7 @@ void mouseMove(int x, int y)
 		lx = -sin(angle + deltaAngle);
 		ly = cos(angle + deltaAngle);
 
-		cout<<lx<<" "<<ly<<"\n";
+		//cout<<lx<<" "<<ly<<"\n";
 	}
 }
 
@@ -219,7 +243,8 @@ Terrain* loadTerrain(const char* filename, float height) {
 		for(int x = 0; x < image->width; x++) {
 			unsigned char color =
 				(unsigned char)image->pixels[3 * (y * image->width + x)];
-			float h = height * ((color / 255.0f) - 0.5f);
+			float h = height * 3.50f *  ((color / 255.0f) - 0.5f);
+			//cout<<h<<" ";
 			t->setHeight(x, y, h);
 		}
 	}
@@ -245,28 +270,28 @@ void initRendering() {
 }
 
 void draw_Terrain() {
-		
-	GLfloat ambientColor[] = {0.4f, 0.4f, 0.4f, 1.0f};
-	glLightModelfv(GL_LIGHT_MODEL_AMBIENT, ambientColor);
 	
-	GLfloat lightColor0[] = {0.6f, 0.6f, 0.6f, 1.0f};
-	GLfloat lightPos0[] = {-0.5f, 0.8f, 0.1f, 0.0f};
-	glLightfv(GL_LIGHT0, GL_DIFFUSE, lightColor0);
-	glLightfv(GL_LIGHT0, GL_POSITION, lightPos0);
 	
+
 	float scale = 5.0f / max(_terrain->width() - 1, _terrain->length() - 1);
 	glScalef(scale, scale, scale);
 	glTranslatef(-(float)(_terrain->width() - 1) / 2,
 				 0.0f,
 				 -(float)(_terrain->length() - 1) / 2);
 	
-	glColor3f(0.3f, 0.9f, 0.0f);
+	//glColor3f(0.3f, 0.9f, 0.0f);
 	for(int z = 0; z < _terrain->length() - 1; z++) {
 		//Makes OpenGL draw a triangle at every three consecutive vertices
 		glBegin(GL_TRIANGLE_STRIP);
 		for(int x = 0; x < _terrain->width(); x++) {
 			Vec3f normal = _terrain->getNormal(x, z);
 			glNormal3f(normal[0], normal[1], normal[2]);
+			if(_terrain->getHeight(x,z)<=-25&& _terrain->getHeight(x,z+1)<=-25)
+				glColor3f(0.3f, 0.3f, 0.9f);
+			else
+				glColor3f(0.3f, 0.9f, 0.0f);
+
+
 			glVertex3f(x, _terrain->getHeight(x, z), z);
 			normal = _terrain->getNormal(x, z + 1);
 			glNormal3f(normal[0], normal[1], normal[2]);
