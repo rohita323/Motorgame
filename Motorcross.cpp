@@ -5,6 +5,8 @@
 #include <GL/glut.h>
 #include "motor.h"
 #include "functions.h"
+#include "imageloader.h"
+#include "vec3f.h"
 #include <iostream>
 
 
@@ -18,7 +20,11 @@ void pressSpecialKey(int key, int xx, int yy);
 void releaseSpecialKey(int key, int x, int y);
 void mouseMove(int x, int y);
 void mouseButton(int button, int state, int x, int y);
-void arrows(int key, int x, int y);
+void mouseWheel(int button, int dir, int x, int y);
+Terrain* loadTerrain(const char* filename, float height);
+void cleanup();
+void initRendering();
+void draw_Terrain();
 
 // Camera position
 float camera_x = 0.0, camera_y = 0.0; // initially 5 units south of origin
@@ -28,7 +34,7 @@ float x=0.0, y=-5.0;
 
 // Camera direction
 float lx = 1.0, ly = 0.0; // camera points initially along y-axis
-float angle = 0.0; // angle of rotation for the camera direction
+float angle = 200; // angle of rotation for the camera direction
 float deltaAngle = 0.0; // additional angle change when dragging
 
 // Mouse drag control
@@ -41,6 +47,7 @@ float motor_y = 0.0;
 float direction[2]={0.0};
 
 Motor* motorcycle;
+Terrain* _terrain;
 
 
 int main(int argc, char **argv) 
@@ -52,6 +59,9 @@ int main(int argc, char **argv)
 	glutInitWindowSize(800, 400);
 	glutCreateWindow("MotorCross");
 
+	_terrain = loadTerrain("heightmap.bmp", 20);
+	//Initialize();
+
 	motorcycle= new Motor(motor_x,motor_y);
 	glutReshapeFunc(windowResize);
 	glutDisplayFunc(renderScene); 
@@ -59,6 +69,7 @@ int main(int argc, char **argv)
 	glutIgnoreKeyRepeat(1); 
 	glutMouseFunc(mouseButton);  
 	glutMotionFunc(mouseMove);
+
 	glutKeyboardFunc(processNormalKeys);
 	glutSpecialFunc(pressSpecialKey);
 						
@@ -83,9 +94,10 @@ void windowResize(int w, int h)
 
 void update(int value) 
 {
-	if (deltaMove) { // update camera position
-		camera_x += deltaMove * lx * 0.1;
-		camera_y += deltaMove * ly * 0.1;
+	if (deltaMove!=0.0) { // update camera position
+		x += deltaMove * lx *1.5;
+		y += deltaMove * ly *1.5;
+		deltaMove=0.0f;
 	}
 	if(direction[0]!=0.0)
 		motor_x=(motorcycle->motor_x+=direction[0]);
@@ -98,8 +110,7 @@ void update(int value)
 
 void renderScene(void) 
 {
-	int i, j;
-
+	
 	glClearColor(0.0, 0.7, 1.0, 1.0); // sky color is light blue
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
@@ -107,18 +118,26 @@ void renderScene(void)
 
 	declare_view(camera_view, motor_x, motor_y);
 
-	glColor3f(0.0, 0.7, 0.0);
-	glBegin(GL_QUADS);
-		glVertex3f(-100.0, -100.0, 0.0);
-		glVertex3f(-100.0,  100.0, 0.0);
-		glVertex3f( 100.0,  100.0, 0.0);
-		glVertex3f( 100.0, -100.0, 0.0);
-	glEnd();
+	// glColor3f(0.0, 0.7, 0.0);
+	// glBegin(GL_QUADS);
+	// 	glVertex3f(-100.0, -100.0, 0.0);
+	// 	glVertex3f(-100.0,  100.0, 0.0);
+	// 	glVertex3f( 100.0,  100.0, 0.0);
+	// 	glVertex3f( 100.0, -100.0, 0.0);
+	// glEnd();
 	
+	glPushMatrix();
+		glScalef(30, 30, 20);
+		glRotatef(90, 1.0f, 0.0f, 0.0f);
+		glTranslatef(0.0, 0.0, 1.0);
+		draw_Terrain();
+	glPopMatrix();
+
 	glPushMatrix();
 		motorcycle->draw();
 	glPopMatrix();
 	
+	glFlush();
 	glutSwapBuffers(); // Make it all visible
 } 
 
@@ -132,8 +151,8 @@ void processNormalKeys(unsigned char key, int xx, int yy)
 	if (key == 'H' || key =='h') 
 	{
 			camera_view=4;
-			x=0;
-			y=0;
+			x=0; lx=1.0;
+			y=0; ly=0.0;
 	}
 	if (key == 'F' || key =='f') camera_view=5;
 
@@ -144,8 +163,8 @@ void pressSpecialKey(int key, int xx, int yy)
 	switch (key) {
 		case GLUT_KEY_UP :  direction[0]=0.5; break;
 		case GLUT_KEY_DOWN : direction[0]=-0.5; break;
-		case GLUT_KEY_RIGHT: direction[1]=0.5; break;
-		case GLUT_KEY_LEFT: direction[1]=-0.5; break;
+		case GLUT_KEY_RIGHT: direction[1]=-0.5; break;
+		case GLUT_KEY_LEFT: direction[1]=0.5; break;
 	}
 } 
 
@@ -184,4 +203,77 @@ void mouseButton(int button, int state, int x, int y)
 			isDragging = 0; // no longer dragging
 		}
 	}
+	if(button==3)
+		deltaMove=1.0;
+
+	else if(button==4)
+		deltaMove=-1.0;
+	else
+		deltaMove=0.0;
+}
+
+Terrain* loadTerrain(const char* filename, float height) {
+	Image* image = loadBMP(filename);
+	Terrain* t = new Terrain(image->width, image->height);
+	for(int y = 0; y < image->height; y++) {
+		for(int x = 0; x < image->width; x++) {
+			unsigned char color =
+				(unsigned char)image->pixels[3 * (y * image->width + x)];
+			float h = height * ((color / 255.0f) - 0.5f);
+			t->setHeight(x, y, h);
+		}
+	}
+	
+	delete image;
+	t->computeNormals();
+	return t;
+}
+
+float _angle = 60.0f;
+
+void cleanup() {
+	delete _terrain;
+}
+
+void initRendering() {
+	glEnable(GL_DEPTH_TEST);
+	glEnable(GL_COLOR_MATERIAL);
+	glEnable(GL_LIGHTING);
+	glEnable(GL_LIGHT0);
+	glEnable(GL_NORMALIZE);
+	glShadeModel(GL_SMOOTH);
+}
+
+void draw_Terrain() {
+		
+	GLfloat ambientColor[] = {0.4f, 0.4f, 0.4f, 1.0f};
+	glLightModelfv(GL_LIGHT_MODEL_AMBIENT, ambientColor);
+	
+	GLfloat lightColor0[] = {0.6f, 0.6f, 0.6f, 1.0f};
+	GLfloat lightPos0[] = {-0.5f, 0.8f, 0.1f, 0.0f};
+	glLightfv(GL_LIGHT0, GL_DIFFUSE, lightColor0);
+	glLightfv(GL_LIGHT0, GL_POSITION, lightPos0);
+	
+	float scale = 5.0f / max(_terrain->width() - 1, _terrain->length() - 1);
+	glScalef(scale, scale, scale);
+	glTranslatef(-(float)(_terrain->width() - 1) / 2,
+				 0.0f,
+				 -(float)(_terrain->length() - 1) / 2);
+	
+	glColor3f(0.3f, 0.9f, 0.0f);
+	for(int z = 0; z < _terrain->length() - 1; z++) {
+		//Makes OpenGL draw a triangle at every three consecutive vertices
+		glBegin(GL_TRIANGLE_STRIP);
+		for(int x = 0; x < _terrain->width(); x++) {
+			Vec3f normal = _terrain->getNormal(x, z);
+			glNormal3f(normal[0], normal[1], normal[2]);
+			glVertex3f(x, _terrain->getHeight(x, z), z);
+			normal = _terrain->getNormal(x, z + 1);
+			glNormal3f(normal[0], normal[1], normal[2]);
+			glVertex3f(x, _terrain->getHeight(x, z + 1), z + 1);
+		}
+		glEnd();
+	}
+	
+	glutSwapBuffers();
 }
